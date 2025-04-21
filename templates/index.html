@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Tweet Sentiment Analyzer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Twitter Sentiment Dashboard</h1>
+      <button class="btn btn-outline" id="themeToggle">Dark Mode</button>
+    </header>
+
+    <div class="controls">
+      <div class="card input-card">
+        <form method="POST">
+          <h2>Analyze Tweets</h2>
+          <textarea name="tweets" placeholder="Enter tweets to analyze (one per line) or paste Twitter URLs..." required></textarea>
+          <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary">Analyze</button>
+            <button type="button" class="btn btn-outline" id="sampleBtn">Load Sample</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if errors %}
+    <div class="error-container">
+      {% for error in errors %}
+      <div class="error-message">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if results %}
+    <div class="results-container">
+      <div class="card sentiment-summary">
+        <h2>Sentiment Distribution</h2>
+        <div class="chart-container">
+          <canvas id="sentimentChart" width="400" height="400"></canvas>
+          <div class="chart-fallback" style="display:none;">
+            Chart could not be loaded. Please try again.
+          </div>
+        </div>
+        <div id="sentimentSummary" 
+             data-positive="{{ summary['Positive'] }}"
+             data-neutral="{{ summary['Neutral'] }}"
+             data-negative="{{ summary['Negative'] }}"
+             style="display:none;"></div>
+        <div class="sentiment-stats">
+          <div class="stat-item">
+            <span class="sentiment-badge badge-positive">Positive</span>
+            <span class="stat-value">{{ summary["Positive"] }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="sentiment-badge badge-neutral">Neutral</span>
+            <span class="stat-value">{{ summary["Neutral"] }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="sentiment-badge badge-negative">Negative</span>
+            <span class="stat-value">{{ summary["Negative"] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tweet-list">
+        <h2>Analysis Results ({{ results|length }})</h2>
+        {% for r in results %}
+        <div class="card tweet-card {{ r.sentiment.lower() }}">
+          {% if r.tweet.startswith('http') %}
+          <p class="tweet-url"><strong>URL:</strong> {{ r.tweet }}</p>
+          <p class="tweet-content"><strong>Content:</strong> {{ r.original_tweet }}</p>
+          {% else %}
+          <p class="tweet-text">{{ r.tweet }}</p>
+          {% endif %}
+          <div class="tweet-meta">
+            <span class="sentiment-badge badge-{{ r.sentiment.lower() }}">{{ r.sentiment }}</span>
+            <div class="sentiment-scores">
+              {% for label, score in r.scores.items() %}
+              <span class="score-pill">{{ label }}: {{ score }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+</body>
+</html>
