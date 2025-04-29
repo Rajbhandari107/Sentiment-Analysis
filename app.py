@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, flash
 from sentiment import analyze_sentiment
-from utils import fetch_tweet_content
+import csv
+import io
 
 app = Flask(__name__)
 app.secret_key = 'dev'  # Needed for flash messages
@@ -12,29 +13,38 @@ def index():
     errors = []
 
     if request.method == "POST":
-        tweets_input = request.form["tweets"]
-        tweets = [t.strip() for t in tweets_input.strip().split("\n") if t.strip()]
-
-        for tweet in tweets:
+        print("POST request received")
+        if "file" in request.files and request.files["file"].filename != "":
+            print("File upload detected")
+            file = request.files["file"]
             try:
-                # Check if it's a Twitter URL
-                if tweet.startswith(('http://', 'https://')) and 'twitter.com' in tweet:
-                    tweet_content = None
-                    try:
-                        tweet_content = fetch_tweet_content(tweet)
-                        if not tweet_content:
-                            errors.append(f"Could not fetch content from: {tweet}")
-                            continue
-                    except ValueError as e:
-                        errors.append(str(e))
-                        continue
+                stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+                csv_input = csv.DictReader(stream)
+                tweets = []
+                for row in csv_input:
+                    if "text" in row and row["text"].strip():
+                        tweets.append(row["text"].strip())
+                print(f"Extracted {len(tweets)} tweets from CSV")
+                if not tweets:
+                    errors.append("CSV file does not contain any tweets in 'text' column.")
+            except Exception as e:
+                errors.append(f"Error processing CSV file: {str(e)}")
+        else:
+            print("No file uploaded, using textarea input")
+            tweets_input = request.form.get("tweets", "")
+            tweets = [t.strip() for t in tweets_input.strip().split("\n") if t.strip()]
+            print(f"Extracted {len(tweets)} tweets from textarea")
 
-                sentiment, scores = analyze_sentiment(tweet_content if tweet.startswith('http') else tweet)
+        # Limit number of tweets to analyze for performance
+        max_tweets = 500
+        for tweet in tweets[:max_tweets]:
+            try:
+                sentiment, scores = analyze_sentiment(tweet)
                 summary[sentiment] += 1
                 results.append({
-                    "original_tweet": tweet_content if tweet.startswith('http') else tweet,
+                    "original_tweet": tweet,
                     "tweet": tweet,
-                    "sentiment": sentiment, 
+                    "sentiment": sentiment,
                     "scores": scores
                 })
             except Exception as e:
@@ -47,3 +57,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
